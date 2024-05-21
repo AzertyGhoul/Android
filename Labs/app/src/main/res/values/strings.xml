@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">Labs</string>
+    <string name="Mazda">Model - Mazda RX7</string>
+    <string name="Toyota">Model - Toyota Camry</string>
+    <string name="Honda">Model - Honda NSX</string>
+    <string name="Ford">Model - Ford Raptor</string>
+    <string name="Chevrolet">Model - Chevrolet Corvette</string>
+    <string name="BMW">Model - BMW G82</string>
+    <string name="Mersedes">Model - Mersedes AMG</string>
+    <string name="Volkswagen">Model - Volkswagen Golf</string>
+    <string name="Nissan">Model - Nissan Skyline</string>
+    <string name="About">Некрасов Алексей Викторович 3102</string>
+    <string name="title_activity_input">InputActivity</string>
+</resources>

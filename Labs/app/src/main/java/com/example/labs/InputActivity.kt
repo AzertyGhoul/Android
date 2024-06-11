@@ -79,10 +79,12 @@ class InputActivity : ComponentActivity() {
                 textStyle = TextStyle(
                     fontSize = 20.sp,
                 ),
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f ),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 shape = RoundedCornerShape(5.dp),
-                colors = TextFieldDefaults.outlinedTextFieldColors()
+                colors = TextFieldDefaults.outlinedTextFieldColors(
+
+                )
             )
             OutlinedTextField(
                 value = autoBrand,
@@ -100,10 +102,13 @@ class InputActivity : ComponentActivity() {
                 ),
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(5.dp),
-                colors = TextFieldDefaults.outlinedTextFieldColors()
+                colors = TextFieldDefaults.outlinedTextFieldColors(
+                )
             )
 
         }
+
+
         Button(
             onClick = {
             if (autoEngineCapacity.isEmpty()) {

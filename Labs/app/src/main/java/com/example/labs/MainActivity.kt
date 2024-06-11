@@ -3,8 +3,11 @@ package com.example.labs
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.Manifest
+import android.content.pm.PackageManager
 import android.content.res.Resources
 import android.os.Bundle
+import android.provider.MediaStore
 import android.view.Display.Mode
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -39,6 +42,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import coil.compose.rememberImagePainter
 import com.example.labs.ui.theme.LabsTheme
 import kotlinx.coroutines.launch
 
@@ -47,6 +53,16 @@ class MainActivity : ComponentActivity() {
     private val viewModel = ItemViewModel()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (savedInstanceState != null && savedInstanceState.containsKey("Auto")) {
+            val tempArray = savedInstanceState.getSerializable("Auto") as ArrayList<Auto>
+            viewModel.clearList()
+            tempArray.forEach {
+                viewModel.addAutoEnd(it)
+            }
+            Toast.makeText(this, "From saved", Toast.LENGTH_LONG).show()
+        } else {
+            Toast.makeText(this, "From create", Toast.LENGTH_LONG).show()
+        }
         setContent {
             val lazyListState = rememberLazyListState()
             LabsTheme {
@@ -59,11 +75,22 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        Toast.makeText(this, "Saved", Toast.LENGTH_LONG).show()
+        var tempArray = ArrayList<Auto>()
+        viewModel.autoListFlow.value.forEach{
+            tempArray.add(it)
+        }
+        outState.putSerializable("Auto", tempArray)
+        super.onSaveInstanceState(outState)
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MakeAppBar(viewModel: ItemViewModel, lazyListState: LazyListState) {
+
     var displayMenu by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val openDialog = remember { mutableStateOf(false) }
@@ -124,6 +151,7 @@ fun MakeAppBar(viewModel: ItemViewModel, lazyListState: LazyListState) {
 @Composable
 fun Main(viewModel: ItemViewModel, lazyListState: LazyListState) {
     val context = LocalContext.current
+    val autoListState = viewModel.autoListFlow.collectAsState()
     LazyColumn (
         verticalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier.fillMaxSize(),
@@ -133,7 +161,7 @@ fun Main(viewModel: ItemViewModel, lazyListState: LazyListState) {
             items = viewModel.autoListFlow.value,
             key = { auto -> auto.numberPlate } ,
             itemContent = { item ->
-                ListRow(item)
+                ListRow(item, autoListState, viewModel)
             }
         )
     }
@@ -153,6 +181,7 @@ fun MakeAlertDialog(context: Context, dialogTitle: String, openDialog: MutableSt
         onDismissRequest = {openDialog.value = false},
         title = { Text(text = dialogTitle) },
         text = { Text(text = autoInfo.value) },
+
         containerColor = Color(103, 59, 50),
         confirmButton = {
             Button(
@@ -189,13 +218,24 @@ fun MakeCringe(context: Context, cringeDialog: MutableState<Boolean>) {
     )
 }
 
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ListRow(item: Auto) {
+fun ListRow(item: Auto, autoListState: State<List<Auto>> ,viewModel: ItemViewModel) {
     val context = LocalContext.current
     val listCurrValue = remember { mutableStateOf("") }
     val openDialog = remember { mutableStateOf(false) }
     val cringeDialog = remember { mutableStateOf(false) }
+    var mDisplayMenu by remember { mutableStateOf(false) }
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        result ->
+        if (result.data?.data != null) {
+            println("image url = ${result.data?.data}")
+            val imgUrl = result.data?.data
+            val index = autoListState.value.indexOf(item)
+            viewModel.changeImage(index, imgUrl.toString())
+        }
+    }
 
     if (openDialog.value) {
         MakeAlertDialog(context, listCurrValue.value, openDialog)
@@ -215,7 +255,7 @@ fun ListRow(item: Auto) {
                     openDialog.value = true
                 },
                 onLongClick = {
-                    cringeDialog.value = true
+                    mDisplayMenu = true
                 }
             )
     ) {
@@ -231,12 +271,44 @@ fun ListRow(item: Auto) {
                 fontSize = 20.sp)
         }
 
+        DropdownMenu(
+            expanded = mDisplayMenu,
+            onDismissRequest = {mDisplayMenu = false}
+        ) {
+            DropdownMenuItem(
+                text =  { Text(text = "Change image", fontSize = 20.sp) },
+                onClick = {
+                    mDisplayMenu = !mDisplayMenu
+                    val permission: String =  Manifest.permission.READ_EXTERNAL_STORAGE
+                    val grant = ContextCompat.checkSelfPermission(context, permission)
+                    if (grant != PackageManager.PERMISSION_GRANTED) {
+                        val permission_list = arrayOfNulls<String>(1)
+                        permission_list[0] = permission
+                        ActivityCompat.requestPermissions(context as Activity, permission_list, 1)
+                    }
+
+                    val intent = Intent(Intent.ACTION_OPEN_DOCUMENT, MediaStore.Images.Media.EXTERNAL_CONTENT_URI).apply {
+                        addCategory(Intent.CATEGORY_OPENABLE) }
+                    launcher.launch(intent)
+                }
+            )
+        }
+
         Image(
-            painter = painterResource(id = item.picture),
+            painter = if (pictureIsInt(item.picture)) painterResource(item.picture.toInt())
+            else rememberImagePainter(item.picture),
             contentDescription = "",
             contentScale = ContentScale.Crop,
             modifier = Modifier.size(140.dp).clip(RoundedCornerShape(5.dp)),
             colorFilter = ColorFilter.tint(Color(149, 79, 65), blendMode = BlendMode.Hue)
         )
     }
+}
+fun pictureIsInt(picture: String) : Boolean {
+    var data = try {
+        picture.toInt()
+    } catch (e: NumberFormatException) {
+        null
+    }
+    return  data != null
 }

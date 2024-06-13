@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">Лаба</string>
+    <string name="Mazda" >Модель - Мазда РХ7</string>
+    <string name="Toyota" >Модель - Тойота Камри</string>
+    <string name="Honda" >Модель - Хонда НСХ</string>
+    <string name="Ford" >Модель - Форд Раптор</string>
+    <string name="Chevrolet" >Модель - Шевроле Корвет</string>
+    <string name="BMW" >Модель - БМВ Г62</string>
+    <string name="Mersedes" >Модель - Мерседес АМГ</string>
+    <string name="Volkswagen" >Модель - Вольксваген Гольф</string>
+    <string name="Nissan" >Модель - Ниссан Скайлан</string>
+    <string name="About" >Некрасов Алексей Викторович 3102</string>
+    <string name="rect">Прямоугольник</string>
+    <string name="oval">Круг</string>
+    <string name="image">Картинка</string>
+    <string name="save">Сохранить</string>
+</resources>

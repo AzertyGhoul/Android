@@ -43,5 +43,6 @@ class ItemViewModel : ViewModel() {
 
     fun changeImage(index: Int, value: String) {
         autoList[index] = autoList[index].copy(picture = value)
+        println(value)
     }
 }

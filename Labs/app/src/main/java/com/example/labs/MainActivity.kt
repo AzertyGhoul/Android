@@ -25,8 +25,10 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -53,6 +55,7 @@ class MainActivity : ComponentActivity() {
     private val viewModel = ItemViewModel()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val DBHelper = autoDBhelper(this)
         if (savedInstanceState != null && savedInstanceState.containsKey("Auto")) {
             val tempArray = savedInstanceState.getSerializable("Auto") as ArrayList<Auto>
             viewModel.clearList()
@@ -62,14 +65,32 @@ class MainActivity : ComponentActivity() {
             Toast.makeText(this, "From saved", Toast.LENGTH_LONG).show()
         } else {
             Toast.makeText(this, "From create", Toast.LENGTH_LONG).show()
+            if (DBHelper!!.isEmpty()) {
+                println("DB is empty")
+                var tempAutoArr = ArrayList<Auto>()
+                viewModel.autoListFlow.value.forEach{
+                    tempAutoArr.add(it)
+                }
+                DBHelper!!.addArrayToDB(tempAutoArr)
+                DBHelper!!.printDB()
+            } else {
+                println("DB has records")
+                DBHelper!!.printDB()
+                val tempAutoArr = DBHelper!!.getAutoArray()
+                viewModel.clearList()
+                tempAutoArr.forEach({
+                    println(it.picture)
+                    viewModel.addAuto(it)
+                })
+            }
         }
         setContent {
             val lazyListState = rememberLazyListState()
             LabsTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.secondaryContainer) {
                     Column(Modifier.fillMaxSize()) {
-                        MakeAppBar(viewModel, lazyListState)
-                        Main(viewModel, lazyListState)
+                        MakeAppBar(viewModel, lazyListState, DBHelper!!)
+//                        Main(viewModel, lazyListState, DBHelper!!)
                     }
                 }
             }
@@ -89,7 +110,7 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MakeAppBar(viewModel: ItemViewModel, lazyListState: LazyListState) {
+fun MakeAppBar(viewModel: ItemViewModel, lazyListState: LazyListState, DBHelper: autoDBhelper) {
 
     var displayMenu by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -101,6 +122,7 @@ fun MakeAppBar(viewModel: ItemViewModel, lazyListState: LazyListState) {
             val newAuto = result.data?.getSerializableExtra("newAuto") as Auto
             if (viewModel.autoListFlow.value.find { it.numberPlate == newAuto.numberPlate } == null) {
                 viewModel.addAuto(newAuto)
+                DBHelper.addAuto(newAuto)
                 scope.launch {
                     lazyListState.scrollToItem(0)
                 }
@@ -111,6 +133,8 @@ fun MakeAppBar(viewModel: ItemViewModel, lazyListState: LazyListState) {
     }
 
     if (openDialog.value) {MakeAlertDialog(context, "About", openDialog)}
+
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
 
     TopAppBar(
         title = {Text(text = "Машинки")},
@@ -144,12 +168,54 @@ fun MakeAppBar(viewModel: ItemViewModel, lazyListState: LazyListState) {
                     }
                 )
             }
+        },
+        navigationIcon = {
+            IconButton(
+                onClick = {
+                    scope.launch {
+                        if (drawerState.isClosed) drawerState.open()
+                        else drawerState.close()
+                    }
+                }
+            ) {
+                Icon(
+                    Icons.Default.Edit,
+                    contentDescription = ""
+                )
+            }
+        }
+    )
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet {
+                Spacer(Modifier.height(10.dp))
+                NavigationDrawerItem(
+                    icon = {Icon(Icons.Default.Star, contentDescription = null)},
+                    label = {Text("Drawing")},
+                    selected = false,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        val newInt =Intent(context, DrawingActivity::class.java)
+                        context.startActivity(newInt)
+                    },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                )
+            }
+        },
+        content = {
+            Column (
+                modifier = Modifier.fillMaxSize().padding(10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Main(viewModel, lazyListState, DBHelper)
+            }
         }
     )
 }
 
 @Composable
-fun Main(viewModel: ItemViewModel, lazyListState: LazyListState) {
+fun Main(viewModel: ItemViewModel, lazyListState: LazyListState, DBHelper: autoDBhelper) {
     val context = LocalContext.current
     val autoListState = viewModel.autoListFlow.collectAsState()
     LazyColumn (
@@ -161,7 +227,7 @@ fun Main(viewModel: ItemViewModel, lazyListState: LazyListState) {
             items = viewModel.autoListFlow.value,
             key = { auto -> auto.numberPlate } ,
             itemContent = { item ->
-                ListRow(item, autoListState, viewModel)
+                ListRow(item, autoListState, viewModel, DBHelper)
             }
         )
     }
@@ -197,31 +263,9 @@ fun MakeAlertDialog(context: Context, dialogTitle: String, openDialog: MutableSt
     )
 }
 
-@Composable
-fun MakeCringe(context: Context, cringeDialog: MutableState<Boolean>) {
-    AlertDialog(
-        onDismissRequest = {cringeDialog.value = false},
-        title = { Text(text = "JUST TAP") },
-        text = { Text(text = "" +
-                "JUST TAP JUST TAP JUST TAP JUST TAP " +
-                "JUST TAP JUST TAP JUST TAP JUST TAP " +
-                "JUST TAP JUST TAP JUST TAP JUST TAP") },
-        confirmButton = {
-            Button(
-                onClick = {
-                    cringeDialog.value = false
-                }
-            ) {
-                Text(text = "JUST TAP")
-            }
-        }
-    )
-}
-
-
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ListRow(item: Auto, autoListState: State<List<Auto>> ,viewModel: ItemViewModel) {
+fun ListRow(item: Auto, autoListState: State<List<Auto>> ,viewModel: ItemViewModel, DBHelper: autoDBhelper) {
     val context = LocalContext.current
     val listCurrValue = remember { mutableStateOf("") }
     val openDialog = remember { mutableStateOf(false) }
@@ -233,16 +277,13 @@ fun ListRow(item: Auto, autoListState: State<List<Auto>> ,viewModel: ItemViewMod
             println("image url = ${result.data?.data}")
             val imgUrl = result.data?.data
             val index = autoListState.value.indexOf(item)
+            DBHelper!!.changeImg(item.numberPlate, imgUrl.toString())
             viewModel.changeImage(index, imgUrl.toString())
         }
     }
 
     if (openDialog.value) {
         MakeAlertDialog(context, listCurrValue.value, openDialog)
-    }
-
-    if (cringeDialog.value) {
-        MakeCringe(context, cringeDialog)
     }
 
     Row (
